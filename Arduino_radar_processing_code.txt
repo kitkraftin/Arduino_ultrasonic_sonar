@@ -1,0 +1,159 @@
+/**
+ * Arduino-Based Radar using Ultrasonic Sensor & Servo Motor
+ * This project visualizes the detection range of an ultrasonic sensor by simulating a radar.
+ * The sensor data (angle and distance) is sent from Arduino to Processing, which renders the radar UI.
+ * Developed for Kitkraft.in
+ */
+
+import processing.serial.*; // Import library for serial communication
+import java.awt.event.KeyEvent; // Import library for reading key events
+import java.io.IOException; // Import library for handling I/O exceptions
+
+// Declare serial object for communication
+Serial myPort; 
+
+// Variables for storing angle, distance, and processed data
+String angle = "";
+String distance = "";
+String data = "";
+String noObject; // Status string for object detection
+float pixsDistance; // Distance in pixels for radar visualization
+int iAngle, iDistance; // Integer values for angle and distance
+int index1 = 0; 
+int index2 = 0;
+
+// Font variable for UI rendering
+PFont orcFont;
+
+void setup() {
+  // Set screen size and initialize serial communication
+  size(1200, 700); // Adjust to your screen resolution
+  smooth(); // Smooth rendering
+  myPort = new Serial(this, "COM7", 9600); // Set serial port (adjust COM port as needed)
+  myPort.bufferUntil('.'); // Read serial data until '.' delimiter
+}
+
+void draw() {
+  // Background effects for radar display
+  noStroke();
+  fill(0, 4); 
+  rect(0, 0, width, height - height * 0.065); 
+  
+  fill(98, 245, 31); // Green color for radar elements
+
+  // Call functions to render radar components
+  drawRadar(); 
+  drawLine();
+  drawObject();
+  drawText();
+}
+
+void serialEvent(Serial myPort) { 
+  // Reads and processes serial data from Arduino
+  data = myPort.readStringUntil('.');
+  data = data.substring(0, data.length() - 1); // Remove delimiter
+  
+  // Extract angle and distance from received data
+  index1 = data.indexOf(",");
+  angle = data.substring(0, index1);
+  distance = data.substring(index1 + 1, data.length());
+  
+  // Convert strings to integers
+  iAngle = int(angle);
+  iDistance = int(distance);
+}
+
+void drawRadar() {
+  // Draw radar grid with arcs and angle lines
+  pushMatrix();
+  translate(width / 2, height - height * 0.074); // Center the radar display
+  noFill();
+  strokeWeight(2);
+  stroke(98, 245, 31); // Green stroke
+  
+  // Draw arcs representing range
+  arc(0, 0, (width - width * 0.0625), (width - width * 0.0625), PI, TWO_PI);
+  arc(0, 0, (width - width * 0.27), (width - width * 0.27), PI, TWO_PI);
+  arc(0, 0, (width - width * 0.479), (width - width * 0.479), PI, TWO_PI);
+  arc(0, 0, (width - width * 0.687), (width - width * 0.687), PI, TWO_PI);
+  
+  // Draw angle lines
+  line(-width / 2, 0, width / 2, 0);
+  for (int angle = 30; angle <= 150; angle += 30) {
+    line(0, 0, (-width / 2) * cos(radians(angle)), (-width / 2) * sin(radians(angle)));
+  }
+  popMatrix();
+}
+
+void drawObject() {
+  // Render detected object on radar
+  pushMatrix();
+  translate(width / 2, height - height * 0.074);
+  strokeWeight(9);
+  stroke(255, 10, 10); // Red color for object
+  
+  // Convert distance from cm to pixels
+  pixsDistance = iDistance * ((height - height * 0.1666) * 0.025);
+  
+  // Draw object if within range
+  if (iDistance < 40) {
+    line(
+      pixsDistance * cos(radians(iAngle)),
+      -pixsDistance * sin(radians(iAngle)),
+      (width - width * 0.505) * cos(radians(iAngle)),
+      -(width - width * 0.505) * sin(radians(iAngle))
+    );
+  }
+  popMatrix();
+}
+
+void drawLine() {
+  // Draw rotating line indicating the radar's scan direction
+  pushMatrix();
+  strokeWeight(9);
+  stroke(30, 250, 60); // Green color for scan line
+  translate(width / 2, height - height * 0.074);
+  line(0, 0, (height - height * 0.12) * cos(radians(iAngle)), -(height - height * 0.12) * sin(radians(iAngle)));
+  popMatrix();
+}
+
+void drawText() {
+  // Display distance, angle, and status information on the screen
+  pushMatrix();
+  noObject = (iDistance > 40) ? "Out of Range" : "In Range";
+  
+  // Draw background for text
+  fill(0, 0, 0);
+  noStroke();
+  rect(0, height - height * 0.0648, width, height);
+  fill(98, 245, 31);
+  textSize(25);
+
+  // Range markers
+  text("10cm", width - width * 0.3854, height - height * 0.0833);
+  text("20cm", width - width * 0.281, height - height * 0.0833);
+  text("30cm", width - width * 0.177, height - height * 0.0833);
+  text("40cm", width - width * 0.0729, height - height * 0.0833);
+  
+  // Display text details
+  textSize(40);
+  text("Kitkraft Radar Project", width - width * 0.875, height - height * 0.0277);
+  text("Angle: " + iAngle, width - width * 0.48, height - height * 0.0277);
+  text("Distance: ", width - width * 0.26, height - height * 0.0277);
+  
+  if (iDistance < 40) {
+    text("        " + iDistance + " cm", width - width * 0.225, height - height * 0.0277);
+  }
+
+  // Draw angle markers on radar
+  for (int angle = 30; angle <= 150; angle += 30) {
+    resetMatrix();
+    translate(
+      width - width * 0.5 + width / 2 * cos(radians(angle)),
+      height - height * 0.09 - width / 2 * sin(radians(angle))
+    );
+    rotate(-radians(90 - angle));
+    text(angle + "°", 0, 0);
+  }
+  popMatrix();
+}
